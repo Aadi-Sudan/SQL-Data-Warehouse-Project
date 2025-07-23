@@ -29,8 +29,10 @@ row_number() over (partition by cst_id order by cst_create_date desc) as flag_la
 from bronze.crm_cust_info) where cst_id is not null and flag_last = 1
 
 TRUNCATE TABLE silver.crm_prd_info;
+ALTER TABLE silver.crm_prd_info ADD COLUMN cat_id VARCHAR(50);
 insert into silver.crm_prd_info(
 	prd_id,
+	cat_id,
 	prd_key,
 	prd_nm,
 	prd_cost,
@@ -38,5 +40,20 @@ insert into silver.crm_prd_info(
 	prd_start_dt,
 	prd_end_dt
 )
-
+-- what we have done: derived cat_id and prd_key columns by transforming the existing prd_key column, handled missing information in prd_cost, normalized prd_line, and enriched prd_end_dt to properly represent the end of a product period
 select prd_id, 
+replace(SUBSTRING(prd_key, 1, 5), '-', '_') as cat_id,
+SUBSTRING(prd_key, 7, LENGTH(prd_key)) as prd_key,
+prd_nm,
+COALESCE(prd_cost, 0) as prd_cost,
+case when UPPER(TRIM(prd_line)) = 'M' then 'Mountain'
+	 when UPPER(TRIM(prd_line)) = 'R' then 'Road' 
+	 when UPPER(TRIM(prd_line)) = 'S' then 'Other Sales'
+	 when UPPER(TRIM(prd_line)) = 'T' then 'Touring'
+	 else 'N/A'
+end prd_line,
+prd_start_dt,
+LEAD(prd_start_dt) over (partition by prd_key order by prd_start_dt)-1 as prd_end_dt
+from bronze.crm_prd_info
+
+TRUNCATE TABLE silver.crm_sales_details;
