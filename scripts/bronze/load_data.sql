@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS bronze.crm_cust_info;
 create table bronze.crm_cust_info(
 	cst_id INT,
 	cst_key VARCHAR(50),
@@ -8,6 +9,7 @@ create table bronze.crm_cust_info(
 	cst_create_date DATE
 );
 
+DROP TABLE IF EXISTS bronze.crm_prd_info;
 create table bronze.crm_prd_info(
 	prd_id INT,
 	prd_key VARCHAR(50),
@@ -18,6 +20,7 @@ create table bronze.crm_prd_info(
 	prd_end_dt DATE
 );
 
+DROP TABLE IF EXISTS bronze.crm_sales_details;
 create table bronze.crm_sales_details(
 	sls_ord_num VARCHAR(50),
 	sls_prd_key VARCHAR(50),
@@ -30,17 +33,20 @@ create table bronze.crm_sales_details(
 	sls_price INT
 );
 
+DROP TABLE IF EXISTS bronze.erp_cust_az12;
 create table bronze.erp_cust_az12(
 	cid VARCHAR(50),
 	bdate DATE,
 	gen VARCHAR(50)
 );
 
+DROP TABLE IF EXISTS bronze.erp_loc_a101;
 create table bronze.erp_loc_a101(
 	cid VARCHAR(50),
 	cntry VARCHAR(50)
 );
 
+DROP TABLE IF EXISTS bronze.erp_px_cat_g1v2;
 create table bronze.erp_px_cat_g1v2(
 	id VARCHAR(50),
 	cat VARCHAR(50),
@@ -51,3 +57,4 @@ create table bronze.erp_px_cat_g1v2(
 -- after doing this, make sure to load in the data from each independent CSV into the respective table
 
 select * from bronze.crm_cust_info
+-- verify that the data was loaded properly
