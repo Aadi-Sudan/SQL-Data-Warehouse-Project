@@ -57,3 +57,93 @@ LEAD(prd_start_dt) over (partition by prd_key order by prd_start_dt)-1 as prd_en
 from bronze.crm_prd_info
 
 TRUNCATE TABLE silver.crm_sales_details;
+ALTER TABLE silver.crm_sales_details
+ALTER COLUMN sls_order_dt TYPE DATE USING TO_DATE(sls_order_dt::TEXT, 'YYYYMMDD');
+
+ALTER TABLE silver.crm_sales_details
+ALTER COLUMN sls_ship_dt TYPE DATE USING TO_DATE(sls_ship_dt::TEXT, 'YYYYMMDD');
+
+ALTER TABLE silver.crm_sales_details
+ALTER COLUMN sls_due_dt TYPE DATE USING TO_DATE(sls_due_dt::TEXT, 'YYYYMMDD');
+
+insert into silver.crm_sales_details (
+	sls_ord_num,
+	sls_prd_key,
+	sls_cust_id,
+	sls_order_dt,
+	sls_ship_dt,
+	sls_due_dt,
+	sls_sales,
+	sls_quantity,
+	sls_price
+)
+-- what we have done: changed dates from int to date datatypes, ensured that quantity, price, and sales data line up with one another
+select sls_ord_num,
+sls_prd_key,
+sls_cust_id,
+case when sls_order_dt = 0 or length(cast(sls_order_dt as VARCHAR)) != 8 then NULL
+	 else cast(cast(sls_order_dt as VARCHAR) as DATE)
+end as sls_order_dt,
+case when sls_ship_dt = 0 or length(cast(sls_ship_dt as VARCHAR)) != 8 then NULL
+	 else cast(cast(sls_ship_dt as VARCHAR) as DATE)
+end as sls_ship_dt,
+case when sls_due_dt = 0 or length(cast(sls_due_dt as VARCHAR)) != 8 then NULL
+	 else cast(cast(sls_due_dt as VARCHAR) as DATE)
+end as sls_due_dt,
+case when sls_sales is null or sls_sales <= 0 or sls_sales != sls_quantity * ABS(sls_price)
+	 then sls_quantity * ABS(sls_price)
+	 else sls_sales
+end as sls_sales,
+sls_quantity,
+case when sls_price is null or sls_price = 0 then sls_sales / nullif(sls_quantity, 0)
+	 else sls_price
+end as sls_price
+from bronze.crm_sales_details
+
+truncate table silver.erp_cust_az12;
+insert into silver.erp_cust_az12(
+	cid,
+	bdate,
+	gen
+)
+-- what we did: ensure cid matches the cst_key from cst_cust_info to make for easy merging, cleaned extreme dates, standardized gender
+select
+case when cid like 'NAS%' then SUBSTRING(cid, 4, LENGTH(cid))
+	 else cid
+end as cid,
+case when bdate > CURRENT_DATE then null
+	 else bdate
+end as bdate,
+case when UPPER(TRIM(gen)) in ('F', 'FEMALE') then 'Female'
+	 when UPPER(TRIM(gen)) in ('M', 'MALE') then 'Male'
+	 else 'N/A'
+end as gen
+from bronze.erp_cust_az12
+
+truncate table silver.erp_loc_a101;
+insert into silver.erp_loc_a101 (
+	cid,
+	cntry
+)
+-- what we did: cleaned cid to match with cst_id from cst_cust_info to ensure easy merging, standardized country
+select replace(cid, '-', '') as cid,
+case when TRIM(cntry) = 'DE' then 'Germany'
+	 when TRIM(cntry) in ('US', 'USA') then 'United States'
+	 when TRIM(cntry) = '' or cntry is null then 'N/A'
+	 else TRIM(cntry)
+end as cntry
+from bronze.erp_loc_a101
+
+truncate table silver.erp_px_cat_g1v2;
+insert into silver.erp_px_cat_g1v2(
+	id,
+	cat,
+	subcat,
+	maintenance
+)
+-- what we did: nothing! This table has excellent data quality and does not require any cleaning!
+select id,
+cat,
+subcat,
+maintenance
+from bronze.erp_px_cat_g1v2 
